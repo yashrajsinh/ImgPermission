@@ -30,7 +30,7 @@ export default function App() {
           status = await request(permission);
         }
 
-        if (status !== 'granted') {
+        if (status !== 'granted' && status !== 'limited') {
           Alert.alert(
             'Camera Permission Needed',
             'Please allow camera access in Settings',
