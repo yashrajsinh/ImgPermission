@@ -1,48 +1,88 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import { StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Alert, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
-//Cutom components
-import ImageButton from './src/components/ImageButton/ImageButton';
 
+import ImageButton from './src/components/ImageButton/ImageButton';
 import MediaPicker from './src/components/MediaPicker/MediaPicker';
 
-//to pick an image or gallery
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import {
+  check,
+  request,
+  PERMISSIONS,
+  openSettings,
+} from 'react-native-permissions';
 
-function App() {
-  //For visibility
+export default function App() {
   const [visible, setVisible] = useState(false);
-  // For an image
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState<string | null>(null);
 
-  //func to handle the image
-  async function handlePick(type: string) {
-    let result;
-    //If Camera is selected
-    if (type === 'camera') {
-      result = await launchCamera({ mediaType: 'photo' });
+  const handlePick = async (type: 'camera' | 'gallery') => {
+    try {
+      if (type === 'camera') {
+        const permission =
+          Platform.OS === 'android'
+            ? PERMISSIONS.ANDROID.CAMERA
+            : PERMISSIONS.IOS.CAMERA;
+
+        let status = await check(permission);
+        if (status !== 'granted') {
+          status = await request(permission);
+        }
+
+        if (status !== 'granted') {
+          Alert.alert(
+            'Camera Permission Needed',
+            'Please allow camera access in Settings',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => openSettings() },
+            ],
+          );
+          return;
+        }
+
+        const result = await launchCamera({ mediaType: 'photo' });
+        if (result.assets?.[0]?.uri) setImage(result.assets[0].uri);
+      } else {
+        // ✅ Add gallery permission check
+        const permission =
+          Platform.OS === 'android'
+            ? parseInt(Platform.Version as string, 10) >= 33
+              ? PERMISSIONS.ANDROID.READ_MEDIA_IMAGES // Android 13+
+              : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE // Android 12 and below
+            : PERMISSIONS.IOS.PHOTO_LIBRARY;
+
+        let status = await check(permission);
+        if (status !== 'granted') {
+          status = await request(permission);
+        }
+
+        if (status !== 'granted') {
+          Alert.alert(
+            'Gallery Permission Needed',
+            'Please allow photo library access in Settings',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => openSettings() },
+            ],
+          );
+          return;
+        }
+
+        const result = await launchImageLibrary({ mediaType: 'photo' });
+        if (result.assets?.[0]?.uri) setImage(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.warn('Error picking image:', err);
     }
-    if (type === 'gallery') {
-      result = await launchImageLibrary({ mediaType: 'photo' });
-    }
-    //set the image
-    // safely get uri
-    const uri = result?.assets?.[0]?.uri;
-    if (uri) {
-      setImage(uri);
-    }
+
     setVisible(false);
-  }
+  };
+
   return (
     <SafeAreaProvider>
-      <SafeAreaView>
+      <SafeAreaView style={styles.container}>
         <ImageButton image={image} onPress={() => setVisible(true)} />
         <MediaPicker
           visible={visible}
@@ -59,5 +99,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-
-export default App;
