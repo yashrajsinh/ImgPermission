@@ -45,20 +45,19 @@ export default function App() {
         const result = await launchCamera({ mediaType: 'photo' });
         if (result.assets?.[0]?.uri) setImage(result.assets[0].uri);
       } else {
-        // ✅ Add gallery permission check
         const permission =
           Platform.OS === 'android'
             ? parseInt(Platform.Version as string, 10) >= 33
-              ? PERMISSIONS.ANDROID.READ_MEDIA_IMAGES // Android 13+
-              : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE // Android 12 and below
+              ? PERMISSIONS.ANDROID.READ_MEDIA_IMAGES
+              : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE
             : PERMISSIONS.IOS.PHOTO_LIBRARY;
 
         let status = await check(permission);
-        if (status !== 'granted') {
+        if (status !== 'granted' && status !== 'limited') {
           status = await request(permission);
         }
 
-        if (status !== 'granted') {
+        if (status !== 'granted' && status !== 'limited') {
           Alert.alert(
             'Gallery Permission Needed',
             'Please allow photo library access in Settings',
